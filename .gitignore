@@ -1,0 +1,19 @@
+# Personal
+
+# Data
+data/
+
+# Jupyter Notebook
+*.ipynb_checkpoints/
+*.ipynb
+!position_analyser.ipynb
+!position_generator.ipynb
+
+# Python
+__pycache__/
+
+# vscode
+.vscode/
+
+# Mac
+.DS_Store

@@ -6,19 +6,19 @@ from .._generator import PositionGenerator
 class HighLowBasedPositionGenerator(PositionGenerator):
     """
     High / Low based Position Generator
-    position : normal_distribution(
-        mean : (high + low) / 2
-        var  : (high - low) / 6
-    )
     """
 
-    def _get_raw_position(self, prices_li_df, idx, time_size, position_size):
+    def _get_raw_position(
+        self, prices_li_df: pd.Series, idx: int, time_size: int, position_size: int
+    ) -> list:
         _prices_li_df = prices_li_df.iloc[max(0, idx - time_size) : idx].copy()
         _position_arr = np.concatenate(_prices_li_df.values)
         _position = self._sample_positions(_position_arr, position_size)
         return _position
 
-    def get_raw_position(self, highs, lows, time_size, position_size):
+    def get_raw_position(
+        self, highs: pd.Series, lows: pd.Series, time_size: int, position_size: int
+    ) -> list:
         hl_df = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
         prices_li_df = hl_df.apply(
             lambda x: self._get_high_low_samples(x["high"], x["low"], 1), axis=1
@@ -27,7 +27,9 @@ class HighLowBasedPositionGenerator(PositionGenerator):
         _positions = self._get_raw_position(prices_li_df, idx, time_size, position_size)
         return _positions
 
-    def get_raw_position_df(self, highs, lows, time_size, position_size):
+    def get_raw_position_df(
+        self, highs: pd.Series, lows: pd.Series, time_size: int, position_size: int
+    ) -> pd.DataFrame:
         positions = list()
         hl_df = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
         prices_li_df = hl_df.apply(
@@ -39,7 +41,9 @@ class HighLowBasedPositionGenerator(PositionGenerator):
         position_df = pd.DataFrame(positions, columns=["positions"], index=highs.index)
         return position_df
 
-    def _get_raw_volume_position(self, hlv_df, idx, time_size, position_size):
+    def _get_raw_volume_position(
+        self, hlv_df: pd.DataFrame, idx: int, time_size: int, position_size: int
+    ) -> list:
         _hlv_df = hlv_df.iloc[max(0, idx - time_size) : idx, :].copy()
         _hlv_df["normalized_volume"] = _hlv_df["volume"].apply(
             lambda x: round((x * position_size) / _hlv_df["volume"].sum())
@@ -54,7 +58,14 @@ class HighLowBasedPositionGenerator(PositionGenerator):
         _positions = self._sample_positions(_positions_arr, position_size)
         return _positions
 
-    def get_raw_volume_position(self, highs, lows, volumes, time_size, position_size):
+    def get_raw_volume_position(
+        self,
+        highs: pd.Series,
+        lows: pd.Series,
+        volumes: pd.Series,
+        time_size: int,
+        position_size: int,
+    ) -> list:
         hlv_df = pd.concat(
             [highs.rename("high"), lows.rename("low"), volumes.rename("volume")], axis=1
         )
@@ -62,7 +73,14 @@ class HighLowBasedPositionGenerator(PositionGenerator):
         _position = self._get_raw_volume_position(hlv_df, idx, time_size, position_size)
         return _position
 
-    def get_raw_volume_position_df(self, highs, lows, volumes, time_size, position_size):
+    def get_raw_volume_position_df(
+        self,
+        highs: pd.Series,
+        lows: pd.Series,
+        volumes: pd.Series,
+        time_size: int,
+        position_size: int,
+    ) -> pd.DataFrame:
         positions = list()
         hlv_df = pd.concat(
             [highs.rename("high"), lows.rename("low"), volumes.rename("volume")], axis=1
@@ -73,7 +91,9 @@ class HighLowBasedPositionGenerator(PositionGenerator):
         position_df = pd.DataFrame(positions, columns=["positions"], index=highs.index)
         return position_df
 
-    def _get_time_dependent_position(self, hl_df, idx, time_size, position_size):
+    def _get_time_dependent_position(
+        self, hl_df: pd.DataFrame, idx: int, time_size: int, position_size: int
+    ) -> list:
         _hl_df = hl_df.iloc[max(0, idx - time_size) : idx, :].copy()
         _hl_df["time"] = list(range(1, len(_hl_df) + 1))
         _position_li_df = _hl_df.apply(
@@ -83,13 +103,17 @@ class HighLowBasedPositionGenerator(PositionGenerator):
         _positions = self._sample_positions(_positions_arr, position_size)
         return _positions
 
-    def get_time_dependent_position(self, highs, lows, time_size, position_size):
+    def get_time_dependent_position(
+        self, highs: pd.Series, lows: pd.Series, time_size: int, position_size: int
+    ) -> list:
         hl_df = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
         idx = len(hl_df)
         _positions = self._get_time_dependent_position(hl_df, idx, time_size, position_size)
         return _positions
 
-    def get_time_dependent_position_df(self, highs, lows, time_size, position_size):
+    def get_time_dependent_position_df(
+        self, highs: pd.Series, lows: pd.Series, time_size: int, position_size: int
+    ) -> pd.DataFrame:
         positions = list()
         hl_df = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
         for idx in range(1, len(hl_df) + 1):
@@ -98,7 +122,9 @@ class HighLowBasedPositionGenerator(PositionGenerator):
         position_df = pd.DataFrame(positions, columns=["positions"], index=highs.index)
         return position_df
 
-    def _get_time_dependent_volume_position(self, hlv_df, idx, time_size, position_size):
+    def _get_time_dependent_volume_position(
+        self, hlv_df: pd.DataFrame, idx: int, time_size: int, position_size: int
+    ) -> list:
         _hlv_df = hlv_df.iloc[max(0, idx - time_size) : idx, :].copy()
         _hlv_df["time"] = list(range(1, len(_hlv_df) + 1))
         _hlv_df["normalized_volume"] = _hlv_df["volume"] / _hlv_df["volume"].sum()
@@ -116,7 +142,14 @@ class HighLowBasedPositionGenerator(PositionGenerator):
         _positions = self._sample_positions(_positions_arr, position_size)
         return _positions
 
-    def get_time_dependent_volume_position(self, highs, lows, volumes, time_size, position_size):
+    def get_time_dependent_volume_position(
+        self,
+        highs: pd.Series,
+        lows: pd.Series,
+        volumes: pd.Series,
+        time_size: int,
+        position_size: int,
+    ) -> list:
         hlv_df = pd.concat(
             [highs.rename("high"), lows.rename("low"), volumes.rename("volume")], axis=1
         )
@@ -124,7 +157,14 @@ class HighLowBasedPositionGenerator(PositionGenerator):
         _positions = self._get_time_dependent_volume_position(hlv_df, idx, time_size, position_size)
         return _positions
 
-    def get_time_dependent_volume_position_df(self, highs, lows, volumes, time_size, position_size):
+    def get_time_dependent_volume_position_df(
+        self,
+        highs: pd.Series,
+        lows: pd.Series,
+        volumes: pd.Series,
+        time_size: int,
+        position_size: int,
+    ) -> pd.DataFrame:
         positions = list()
         hlv_df = pd.concat(
             [highs.rename("high"), lows.rename("low"), volumes.rename("volume")], axis=1

@@ -1,9 +1,10 @@
 import numpy as np
 from scipy.stats import gaussian_kde
+from typing import Tuple
 
 
 class PositionLimitModel:
-    def calc(self, positions):
+    def calc(self, positions: list) -> Tuple[float, float]:
         upper_positions = self._get_upper_positions(positions)
         upper_density_point = self._get_max_density_point(upper_positions)
 
@@ -13,19 +14,19 @@ class PositionLimitModel:
         return (lower_density_point, upper_density_point)
 
     @staticmethod
-    def _get_upper_positions(positions):
+    def _get_upper_positions(positions: list) -> float:
         median_position = np.median(positions)
         upper_positions = [position for position in positions if position > median_position]
         return upper_positions
 
     @staticmethod
-    def _get_lower_positions(positions):
+    def _get_lower_positions(positions: list) -> float:
         median_position = np.median(positions)
         lower_positions = [position for position in positions if position < median_position]
         return lower_positions
 
     @staticmethod
-    def _get_max_density_point(numbers):
+    def _get_max_density_point(numbers: list) -> float:
         kde = gaussian_kde(numbers)
         grid = np.linspace(min(numbers), max(numbers), 100)
 

@@ -11,76 +11,128 @@ class HighLowBasedPositionGenerator(PositionGenerator):
         var  : (high - low) / 6
     )
     """
+
+    def _get_raw_position(self, prices_li_df, idx, time_size, position_size):
+        _prices_li_df = prices_li_df.iloc[max(0, idx - time_size) : idx].copy()
+        _position_arr = np.concatenate(_prices_li_df.values)
+        _position = self._sample_positions(_position_arr, position_size)
+        return _position
+
     def get_raw_position(self, highs, lows, time_size, position_size):
-        positions = list()
-        highs_lows = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
-        prices_li_arr = highs_lows.apply(
+        hl_df = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
+        prices_li_df = hl_df.apply(
             lambda x: self._get_high_low_samples(x["high"], x["low"], 1), axis=1
-        ).values
-        for idx in range(1, len(prices_li_arr) + 1):
-            _prices_li_arr = prices_li_arr[max(0, idx - time_size) : idx]
-            _raw_positions_arr = np.concatenate(_prices_li_arr)
-            _positions = self._sample_positions(_raw_positions_arr, position_size)
+        )
+        idx = len(prices_li_df)
+        _positions = self._get_raw_position(prices_li_df, idx, time_size, position_size)
+        return _positions
+
+    def get_raw_position_df(self, highs, lows, time_size, position_size):
+        positions = list()
+        hl_df = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
+        prices_li_df = hl_df.apply(
+            lambda x: self._get_high_low_samples(x["high"], x["low"], 1), axis=1
+        )
+        for idx in range(1, len(prices_li_df) + 1):
+            _positions = self._get_raw_position(prices_li_df, idx, time_size, position_size)
             positions.append([_positions])
         position_df = pd.DataFrame(positions, columns=["positions"], index=highs.index)
         return position_df
+
+    def _get_raw_volume_position(self, hlv_df, idx, time_size, position_size):
+        _hlv_df = hlv_df.iloc[max(0, idx - time_size) : idx, :].copy()
+        _hlv_df["normalized_volume"] = _hlv_df["volume"].apply(
+            lambda x: round((x * position_size) / _hlv_df["volume"].sum())
+        )
+        _position_li_df = _hlv_df.apply(
+            lambda x: self._get_high_low_samples(
+                x["high"], x["low"], x["normalized_volume"].astype(int)
+            ),
+            axis=1,
+        )
+        _positions_arr = np.concatenate(_position_li_df.values)
+        _positions = self._sample_positions(_positions_arr, position_size)
+        return _positions
 
     def get_raw_volume_position(self, highs, lows, volumes, time_size, position_size):
-        positions = list()
-        highs_lows = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
-        volumes_arr = volumes.values
-        for idx in range(1, len(highs_lows) + 1):
-            _high_lows = highs_lows.iloc[max(0, idx - time_size) : idx, :]
-            _volume_arr = volumes_arr[max(0, idx - time_size) : idx]
-            _normalized_volumes = (_volume_arr * position_size) / _volume_arr.sum()
-            _high_lows.loc[:, ["volume"]] = np.round(_normalized_volumes).astype(int)
+        hlv_df = pd.concat(
+            [highs.rename("high"), lows.rename("low"), volumes.rename("volume")], axis=1
+        )
+        idx = len(hlv_df)
+        _position = self._get_raw_volume_position(hlv_df, idx, time_size, position_size)
+        return _position
 
-            _raw_positions = _high_lows.apply(
-                lambda x: self._get_high_low_samples(x["high"], x["low"], x["volume"]), axis=1
-            )
-            _raw_positions_arr = np.concatenate(_raw_positions.values)
-            _positions = self._sample_positions(_raw_positions_arr, position_size)
-            positions.append([_positions])
+    def get_raw_volume_position_df(self, highs, lows, volumes, time_size, position_size):
+        positions = list()
+        hlv_df = pd.concat(
+            [highs.rename("high"), lows.rename("low"), volumes.rename("volume")], axis=1
+        )
+        for idx in range(1, len(hlv_df) + 1):
+            _position = self._get_raw_volume_position(hlv_df, idx, time_size, position_size)
+            positions.append([_position])
         position_df = pd.DataFrame(positions, columns=["positions"], index=highs.index)
         return position_df
+
+    def _get_time_dependent_position(self, hl_df, idx, time_size, position_size):
+        _hl_df = hl_df.iloc[max(0, idx - time_size) : idx, :].copy()
+        _hl_df["time"] = list(range(1, len(_hl_df) + 1))
+        _position_li_df = _hl_df.apply(
+            lambda x: self._get_high_low_samples(x["high"], x["low"], x["time"]), axis=1
+        )
+        _positions_arr = np.concatenate(_position_li_df.values)
+        _positions = self._sample_positions(_positions_arr, position_size)
+        return _positions
 
     def get_time_dependent_position(self, highs, lows, time_size, position_size):
-        positions = list()
-        highs_lows = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
-        for idx in range(1, len(highs_lows) + 1):
-            _high_lows = highs_lows.iloc[max(0, idx - time_size) : idx, :]
-            _time_arr = np.arange(1, len(_high_lows) + 1)
+        hl_df = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
+        idx = len(hl_df)
+        _positions = self._get_time_dependent_position(hl_df, idx, time_size, position_size)
+        return _positions
 
-            _high_lows.loc[:, ["time"]] = np.round(_time_arr).astype(int)
-            _raw_positions = _high_lows.apply(
-                lambda x: self._get_high_low_samples(x["high"], x["low"], x["time"]), axis=1
-            )
-            _raw_positions_arr = np.concatenate(_raw_positions.values)
-            _positions = self._sample_positions(_raw_positions_arr, position_size)
+    def get_time_dependent_position_df(self, highs, lows, time_size, position_size):
+        positions = list()
+        hl_df = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
+        for idx in range(1, len(hl_df) + 1):
+            _positions = self._get_time_dependent_position(hl_df, idx, time_size, position_size)
             positions.append([_positions])
         position_df = pd.DataFrame(positions, columns=["positions"], index=highs.index)
         return position_df
 
+    def _get_time_dependent_volume_position(self, hlv_df, idx, time_size, position_size):
+        _hlv_df = hlv_df.iloc[max(0, idx - time_size) : idx, :].copy()
+        _hlv_df["time"] = list(range(1, len(_hlv_df) + 1))
+        _hlv_df["normalized_volume"] = _hlv_df["volume"] / _hlv_df["volume"].sum()
+        _hlv_df["weight"] = _hlv_df["time"] * _hlv_df["normalized_volume"]
+        _hlv_df["normalized_weight"] = _hlv_df["weight"].apply(
+            lambda x: round((x * position_size) / _hlv_df["weight"].sum())
+        )
+        _position_li_df = _hlv_df.apply(
+            lambda x: self._get_high_low_samples(
+                x["high"], x["low"], x["normalized_weight"].astype(int)
+            ),
+            axis=1,
+        )
+        _positions_arr = np.concatenate(_position_li_df.values)
+        _positions = self._sample_positions(_positions_arr, position_size)
+        return _positions
+
     def get_time_dependent_volume_position(self, highs, lows, volumes, time_size, position_size):
+        hlv_df = pd.concat(
+            [highs.rename("high"), lows.rename("low"), volumes.rename("volume")], axis=1
+        )
+        idx = len(hlv_df)
+        _positions = self._get_time_dependent_volume_position(hlv_df, idx, time_size, position_size)
+        return _positions
+
+    def get_time_dependent_volume_position_df(self, highs, lows, volumes, time_size, position_size):
         positions = list()
-        highs_lows = pd.concat([highs.rename("high"), lows.rename("low")], axis=1)
-        volumes_arr = volumes.values
-        for idx in range(1, len(highs_lows) + 1):
-            _high_lows = highs_lows.iloc[max(0, idx - time_size) : idx, :]
-
-            _volume_arr = volumes_arr[max(0, idx - time_size) : idx]
-            _normalized_volumes_arr = ((_volume_arr * position_size) / _volume_arr.sum())
-
-            _time_arr = np.arange(1, len(_high_lows) + 1)
-
-            _weights = _normalized_volumes_arr * _time_arr
-            _high_lows.loc[:,["weight"]] = np.round(_weights).astype(int)
-
-            _raw_positions = _high_lows.apply(
-                lambda x: self._get_high_low_samples(x["high"], x["low"], x["weight"]), axis=1
+        hlv_df = pd.concat(
+            [highs.rename("high"), lows.rename("low"), volumes.rename("volume")], axis=1
+        )
+        for idx in range(1, len(hlv_df) + 1):
+            _positions = self._get_time_dependent_volume_position(
+                hlv_df, idx, time_size, position_size
             )
-            _raw_positions_arr = np.concatenate(_raw_positions.values)
-            _positions = self._sample_positions(_raw_positions_arr, position_size)
             positions.append([_positions])
         position_df = pd.DataFrame(positions, columns=["positions"], index=highs.index)
         return position_df

@@ -8,7 +8,7 @@ data/
 *.ipynb
 !position_analyser.ipynb
 !position_generator.ipynb
-
+!example.ipynb
 # Python
 __pycache__/
 
